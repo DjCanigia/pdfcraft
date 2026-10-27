@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+; EXAMPLE ONLY. Use only if these values did NOT exist before this customization.
+; Does not delete the key or unrelated values. Missing means grayscale/long-edge in patched app.
+[HKEY_LOCAL_MACHINE\SOFTWARE\PdfCraft\PrintDefaults]
+"Grayscale"=-
+"Duplex"=-

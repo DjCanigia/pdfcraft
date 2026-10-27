@@ -8004,6 +8004,7 @@ notes = ""
 # ==================================================================================================
 
 [[feature]]
+# Custom RDS candidate: see docs/windows-rds-print-defaults.md; Windows defaults/tests unverified, no shipped-status/evidence change.
 id = "print.print-dialog"
 title = "Print dialog"
 area = "L"

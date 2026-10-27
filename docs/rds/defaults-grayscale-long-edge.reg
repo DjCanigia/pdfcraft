@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+; EXAMPLE ONLY. Requires the patched build. Review/backup before importing.
+; Import into the 64-bit registry view, including for 32-bit app builds.
+[HKEY_LOCAL_MACHINE\SOFTWARE\PdfCraft\PrintDefaults]
+"Grayscale"=dword:00000001
+"Duplex"=dword:00000002

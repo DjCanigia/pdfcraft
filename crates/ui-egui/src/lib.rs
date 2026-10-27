@@ -2885,6 +2885,23 @@ impl PdfCraftApp {
     pub fn set_option(&mut self, key: &str, value: &str) -> Result<(), String> {
         let view = self.active.and_then(|i| self.views.get_mut(i));
         match (key, view) {
+            ("print-grayscale", _) => {
+                self.print_draft.grayscale = match value {
+                    "true" => true,
+                    "false" => false,
+                    _ => return Err("print-grayscale must be true or false".into()),
+                };
+            }
+            ("print-duplex", _) => {
+                use pdfcraft_engine::print::spool::Duplex;
+                self.print_draft.duplex = match value {
+                    "printer" => None,
+                    "off" => Some(Duplex::Off),
+                    "long-edge" => Some(Duplex::LongEdge),
+                    "short-edge" => Some(Duplex::ShortEdge),
+                    _ => return Err("print-duplex must be printer, off, long-edge or short-edge".into()),
+                };
+            }
             ("language", _) => {
                 let language = i18n::normalize_pref(value).ok_or_else(|| {
                     let codes: Vec<&str> = std::iter::once(i18n::AUTO).chain(i18n::Lang::all().map(i18n::Lang::code)).collect();

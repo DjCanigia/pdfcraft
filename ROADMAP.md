@@ -1,5 +1,7 @@
 # PdfCraft roadmap
 
+> 2026-10-27: M10 custom RDS candidate: Windows dialog defaults and HKLM override; Rust/build/hardware checks pending; no readiness change.
+
 **Stage: alpha** · next: beta, ~25% (ready for real work 50% → 75%) and ~400–700 h away
 
 > **Last reviewed:** 2026-10-23 | **Last updated:** 2026-10-23 | **Change:** minor (M8, #3205 follow-up: labelled Italian international phone numbers with a slash match whole; estimates unchanged)

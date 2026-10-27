@@ -9,6 +9,8 @@ use pdfcraft_engine::print::{self, Binding, BookletSubset, Content, Layout, Orie
 use crate::theme::{self, Tokens};
 use crate::{PdfCraftApp, widgets};
 
+mod defaults;
+
 /// The preview pane, and the paper inside it (12 pt inset on each side).
 const PREVIEW_W: f32 = 320.0;
 const PREVIEW_H: f32 = 380.0;
@@ -364,6 +366,14 @@ impl Drop for WakeOnExit {
 
 impl PdfCraftApp {
     pub fn open_print(&mut self) {
+        #[cfg(target_os = "windows")]
+        let defaults = Some(defaults::machine());
+        #[cfg(not(target_os = "windows"))]
+        let defaults = None;
+        self.open_print_with_defaults(defaults);
+    }
+
+    fn open_print_with_defaults(&mut self, defaults: Option<defaults::PrintDefaults>) {
         let Some((i, _)) = self.active_ids() else { return };
         let (printers, printers_loading) = match self.printer_source.clone() {
             // The list from the last time the dialog opened, until the fresh one arrives.
@@ -402,6 +412,12 @@ impl PdfCraftApp {
             which,
             ..keep
         };
+        // Defaults seed each new dialog, including after Cancel. They are never reapplied
+        // while it is open, so changing colour or binding remains a per-job choice.
+        if let Some(defaults) = defaults {
+            self.print_draft.grayscale = defaults.grayscale;
+            self.print_draft.duplex = defaults.duplex;
+        }
         self.dialog = Some(crate::Dialog::Print);
     }
 
@@ -1388,6 +1404,62 @@ pub(crate) fn body(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn machine_defaults_seed_each_dialog_but_headless_per_job_choices_win() {
+        use crate::control::Host as _;
+        let bytes = pdfcraft_engine::Session::new().create_blank(200.0, 300.0, 2).unwrap();
+        let mut app = PdfCraftApp::new();
+        app.open_bytes("print-defaults.pdf", None, bytes.to_vec()).unwrap();
+        // No real queues, registry mutations, network or spool submissions in this test.
+        app.printer_source = Some(std::sync::Arc::new(Vec::new));
+        let defaults = defaults::PrintDefaults { grayscale: true, duplex: Some(spool::Duplex::LongEdge) };
+        app.open_print_with_defaults(Some(defaults));
+        assert!(app.print_draft.job("test").grayscale);
+        assert_eq!(app.print_draft.job("test").duplex, Some(spool::Duplex::LongEdge));
+        assert_eq!(app.state()["print"]["duplex"], "long-edge");
+
+        // Exercise the same ui.set entry point exposed to the CLI/MCP control channel.
+        app.set("print-grayscale", "false").unwrap();
+        for (value, wanted) in [("printer", None), ("off", Some(spool::Duplex::Off)), ("short-edge", Some(spool::Duplex::ShortEdge))] {
+            app.set("print-duplex", value).unwrap();
+            let job = app.print_draft.job("test");
+            assert!(!job.grayscale);
+            assert_eq!(job.duplex, wanted);
+            assert_eq!(app.state()["print"]["duplex"], value);
+        }
+        let before = app.print_draft.clone();
+        assert!(app.set("print-duplex", "sideways").is_err());
+        assert!(app.set("print-grayscale", "maybe").is_err());
+        assert_eq!(app.print_draft, before, "invalid input keeps the job's choices");
+
+        app.dialog = None; // Cancel does not save job overrides into the machine defaults.
+        app.open_print_with_defaults(Some(defaults));
+        assert!(app.print_draft.grayscale);
+        assert_eq!(app.print_draft.duplex, Some(spool::Duplex::LongEdge));
+        app.print_draft.handling = Handling::Booklet;
+        assert_eq!(app.print_draft.job("test").duplex, Some(spool::Duplex::ShortEdge));
+        app.print_draft.handling = Handling::Multiple;
+        app.print_draft.order = PageOrder::CutStack;
+        assert_eq!(app.print_draft.job("test").duplex, Some(spool::Duplex::Off));
+        // Cut-and-stack keeps upstream's validation: choose Off before printing.
+        assert!(app.print_draft.settings(2, &[]).is_err());
+        app.set("print-duplex", "off").unwrap();
+        assert!(app.print_draft.settings(2, &[]).is_ok());
+    }
+
+    #[test]
+    fn no_machine_defaults_keeps_the_existing_dialog_choices() {
+        let bytes = pdfcraft_engine::Session::new().create_blank(200.0, 300.0, 1).unwrap();
+        let mut app = PdfCraftApp::new();
+        app.open_bytes("print-defaults.pdf", None, bytes.to_vec()).unwrap();
+        app.printer_source = Some(std::sync::Arc::new(Vec::new));
+        app.print_draft.grayscale = false;
+        app.print_draft.duplex = Some(spool::Duplex::ShortEdge);
+        app.open_print_with_defaults(None);
+        assert!(!app.print_draft.grayscale);
+        assert_eq!(app.print_draft.duplex, Some(spool::Duplex::ShortEdge));
+    }
 
     #[test]
     fn current_page_preview_uses_positions_and_selection_guards() {

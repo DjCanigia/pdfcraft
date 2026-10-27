@@ -1,0 +1,6 @@
+Windows Registry Editor Version 5.00
+
+; EXAMPLE ONLY. Patched build: start in colour, let the printer choose duplex.
+[HKEY_LOCAL_MACHINE\SOFTWARE\PdfCraft\PrintDefaults]
+"Grayscale"=dword:00000000
+"Duplex"=dword:00000000
